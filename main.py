@@ -44,20 +44,20 @@ async def button(message: types.Message):
 async def callback(call: types.CallbackQuery):
     if call.message:
         if call.data == 'canteen1':
-            await call.message.answer('*Меню столовой №1:*',  parse_mode='MarkdownV2')
-            await call.message.answer(await view(call.data))
+            await call.message.answer('*Меню столовой №1:*', parse_mode='MarkdownV2')
+            await call.message.answer(await view(call.data), parse_mode='MarkdownV2')
 
         elif call.data == 'canteen2':
-            await call.message.answer('*Меню столовой №2:*',  parse_mode='MarkdownV2')
-            await call.message.answer(await view(call.data))
+            await call.message.answer('*Меню столовой №2:*', parse_mode='MarkdownV2')
+            await call.message.answer(await view(call.data), parse_mode='MarkdownV2')
 
         elif call.data == 'canteen3':
             db_task = asyncio.create_task(view(call.data))
             answer1_task = asyncio.create_task(answer_message(call.message))
-            print('1')
+            #print('1')
             await answer1_task
 
-            await call.message.answer(await db_task)
+            await call.message.answer(await db_task, parse_mode='MarkdownV2')
 
     await bot.answer_callback_query(call.id) #for remove clock icon
     await call.message.delete()
@@ -69,14 +69,16 @@ async def answer_message(message):
 
 
 async def view_db(cant, num):
-
-
-async def view(cant):
     print('start DB')
     cursor = db.cursor()
-    #cursor.execute("SELECT dish_name from " + str(cant))
-    cursor.execute("select d.name from " + str(cant) + "c join dishes d on c.dish_id = d.id join dish_type dt on d.type_id = dt.id where dt.id = 1")
+    cursor.execute("select type from dish_type where id = " + str(num))
+    name = '\n'.join(cursor.fetchall()[0])
+    print(name)
+
+    cursor.execute("select d.name from " + str(
+        cant) + " c join dishes d on c.dish_id = d.id join dish_type dt on d.type_id = dt.id where dt.id = " + str(num))
     menu = cursor.fetchall()
+
     # for n in range(1, 6):как асинхронно работать с тг и бд
     #     print('DB wait', n)
     #     await asyncio.sleep(1)
@@ -85,7 +87,25 @@ async def view(cant):
         my_list.append(dish[0])
     my_str = '\n'.join(my_list)
     print('end DB')
-    return my_str
+    if my_str == "":
+        new_str = ""
+    else:
+        new_str = "*" +name + "*" + ":\n" + my_str + "\n\n"
+    return new_str
+
+
+async def view(cant):
+
+    cursor = db.cursor()
+    cursor.execute("SELECT MAX(id) FROM dish_type")
+    max_id = cursor.fetchall()[0][0]
+    global menu_str
+    menu_str = ""
+    for n in range(1, max_id + 1):
+        # global menu_str
+        menu_str += await view_db(cant, n)
+
+    return menu_str
 
 
 if __name__ == '__main__':
