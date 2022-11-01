@@ -1,18 +1,15 @@
-import telebot
+import logging
+from aiogram import Bot, Dispatcher, executor, types
 import mysql.connector
+import asyncio
 
-from telebot import types
-bot = telebot.TeleBot("5625802533:AAHko3i9I-lyYB-WctFer1HsmMCgSVGi-_A")
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+
+bot = Bot(token="5625802533:AAHko3i9I-lyYB-WctFer1HsmMCgSVGi-_A")
+dp = Dispatcher(bot)
 
 
-# def __init__(self):
-#     # подключение к базе данных
-#     self.connection = mysql.connect(database='bonchfood.db',
-#                                        user='root',
-#                                        password='root',
-#                                        host='localhost',
-#                                        port='3306')
-#     self.cursor = self.connection.cursor()
 
 db = mysql.connector.connect(
     host="localhost",
@@ -22,113 +19,80 @@ db = mysql.connector.connect(
     database="bonchfood"
 )
 
-#cursor = db.cursor()
-#cursor.execute("SHOW TABLES")
 
-#cursor.execute("SHOW DATABASES")
+@dp.message_handler(lambda message: message.text and 'меню' in message.text.lower())
+async def onMenu(message: types.Message):
+    await button(message)
 
-#for x in cursor:
-#    print(x)
+@dp.message_handler(commands=['start','меню'])
+async def onStart(message: types.Message):
+    await button(message)
 
 
-#for x in cursor:
-#    print(x)
-# cursor.execute("SELECT dish_name as Блюдо from canteen1")
-#
-# menu = cursor.fetchall()
-# my_list = []
-# for dish in menu:
-#     my_list.append(' | '.join(dish))
-# my_str = '\n'.join(my_list)
-
-#menu=cursor.fetchmany()
-#for dish in menu:
-#    req = dish
-#    print(dish)
-
-@bot.message_handler(commands=['start'])
-def button(message):
+async def button(message: types.Message):
     markup = types.InlineKeyboardMarkup(row_width=1)
-    item1 = types.InlineKeyboardButton('Столовая 1', callback_data='canteen1')
-    item2 = types.InlineKeyboardButton('Столовая 2', callback_data='canteen2')
-    item3 = types.InlineKeyboardButton('Столовая 3', callback_data='canteen3')
+    item1 = types.KeyboardButton('Столовая 1', callback_data='canteen1')
+    item2 = types.KeyboardButton('Столовая 2', callback_data='canteen2')
+    item3 = types.KeyboardButton('Столовая 3', callback_data='canteen3')
     markup.add(item1, item2, item3)
 
-    bot.send_message(message.chat.id, 'Привет! Здесь вы можете узнать меню.')
-    bot.send_message(message.chat.id, 'Выберите столовую:', reply_markup=markup)
-@bot.callback_query_handler(func=lambda call:True)
-def callback(call):
+    # await bot.send_message(message.chat.id, 'Привет! Здесь вы можете узнать меню.')
+    await message.answer('Выберите столовую:', reply_markup=markup)
+
+
+@dp.callback_query_handler(func=None)
+async def callback(call: types.CallbackQuery):
     if call.message:
         if call.data == 'canteen1':
-            bot.send_message(call.message.chat.id, 'Меню столовой №1:')
-            bot.send_message(call.message.chat.id, view(call.data))
+            await call.message.answer('*Меню столовой №1:*',  parse_mode='MarkdownV2')
+            await call.message.answer(await view(call.data))
 
         elif call.data == 'canteen2':
-            bot.send_message(call.message.chat.id, 'Меню столовой №2:')
-            bot.send_message(call.message.chat.id, view(call.data))
-        elif call.data == 'canteen3':
-            bot.send_message(call.message.chat.id, 'Меню столовой №3:')
-            bot.send_message(call.message.chat.id, view(call.data))
+            await call.message.answer('*Меню столовой №2:*',  parse_mode='MarkdownV2')
+            await call.message.answer(await view(call.data))
 
-def view(cant):
+        elif call.data == 'canteen3':
+            db_task = asyncio.create_task(view(call.data))
+            answer1_task = asyncio.create_task(answer_message(call.message))
+            print('1')
+            await answer1_task
+
+            await call.message.answer(await db_task)
+
+    await bot.answer_callback_query(call.id) #for remove clock icon
+    await call.message.delete()
+
+
+async def answer_message(message):
+    await message.answer('*Меню столовой №3:*', parse_mode='MarkdownV2')
+    print('2')
+
+
+async def view_db(cant, num):
+
+
+async def view(cant):
+    print('start DB')
     cursor = db.cursor()
-    cursor.execute("SELECT dish_name from " + str(cant))
+    #cursor.execute("SELECT dish_name from " + str(cant))
+    cursor.execute("select d.name from " + str(cant) + "c join dishes d on c.dish_id = d.id join dish_type dt on d.type_id = dt.id where dt.id = 1")
     menu = cursor.fetchall()
+    # for n in range(1, 6):как асинхронно работать с тг и бд
+    #     print('DB wait', n)
+    #     await asyncio.sleep(1)
     my_list = []
     for dish in menu:
-        my_list.append(' | '.join(dish))
+        my_list.append(dish[0])
     my_str = '\n'.join(my_list)
+    print('end DB')
     return my_str
 
-bot.polling(none_stop=True)
 
+if __name__ == '__main__':
+    executor.start_polling(dp)
 
-
-# def view():
-#     cursor = db.cursor()
-#     sql = "SELECT dish_name as Блюдо from canteen1"
-#     try:
-#         cursor.execute(sql)
-#         results = cursor.fetchall()
 #
-#         if len(results) > 0:
-#             output = ''
-#             for row in results:
-#
-#                output = row
-#                 print(row)
-#         else:
-#             output = 'No word in my dic'
-#     except:
-#         output = 'error'
-#     return output
-#
-# def view1(cant):
-#     cursor = db.cursor()
-#     cursor.execute("SELECT dish_name from " + str(cant))
-#     menu = cursor.fetchall()
-#     my_list = []
-#     for dish in menu:
-#         my_list.append(' | '.join(dish))
-#     my_str = '\n'.join(my_list)
-#     return my_str
-#
-# def view2():
-#     cursor = db.cursor()
-#     cursor.execute("SELECT dish_name from canteen2")
-#     menu = cursor.fetchall()
-#     my_list = []
-#     for dish in menu:
-#         my_list.append(' | '.join(dish))
-#     my_str = '\n'.join(my_list)
-#     return my_str
-#
-# def view3():
-#     cursor = db.cursor()
-#     cursor.execute("SELECT dish_name from canteen3")
-#     menu = cursor.fetchall()
-#     my_list = []
-#     for dish in menu:
-#         my_list.append(' | '.join(dish))
-#     my_str = '\n'.join(my_list)
-#     return my_str
+# *bold \*text*
+# _italic \*text_
+# __underline__
+# ~strikethrough~
