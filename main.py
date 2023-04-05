@@ -1,4 +1,5 @@
 import logging
+import asyncio
 import sys
 import datetime
 import time
@@ -15,7 +16,7 @@ from aiogram.utils.markdown import link, hlink
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
-bot = Bot(token="5305942373:AAHAairFXm4RtAnuHb4fKPbJJErpf5cTu1o")
+bot = Bot(token="5305942373:AAFEoP_FLB4KwpEUpNCIXWn-dd6A7z7xaaE")
 dp = Dispatcher(bot)
 
 
@@ -107,14 +108,14 @@ async def button(message: types.Message):
     #is_work_time('10:00', '17:00') &
     print(date.today().weekday())
     #время работы столовых
-    start1 = datetime.time(10, 0)
-    end1 = datetime.time(17, 00)
+    start1 = datetime.time(00, 0)
+    end1 = datetime.time(23, 00)
 
-    start2 = datetime.time(10, 0)
-    end2 = datetime.time(15, 00)
+    start2 = datetime.time(00, 0)
+    end2 = datetime.time(23, 00)
 
-    start3 = datetime.time(11, 0)
-    end3 = datetime.time(15, 00)
+    start3 = datetime.time(00, 0)
+    end3 = datetime.time(23, 00)
     current = datetime.datetime.now().time()
 
     print(start1)
@@ -182,6 +183,7 @@ async def answer_message(message):
 
 
 async def view_db(cant, num):
+    print(num)
     #print('start DB')
     db = connect()
     cursor = db.cursor()
@@ -211,19 +213,23 @@ async def view_db(cant, num):
 async def view(cant):
     db = connect()
     cursor = db.cursor()
-    cursor.execute("SELECT MAX(id) FROM dish_type")
-    max_id = cursor.fetchall()[0][0]
+    #cursor.execute("SELECT MAX(id) FROM dish_type")
+    cursor.execute("SELECT id FROM dish_type")
+    #count = cursor.fetchall()[0][0]
     global menu_str
     menu_str = ""
-    for n in range(1, max_id + 1):
-        # global menu_str
-        menu_str += await view_db(cant, n)
+    # for n in range(1, count + 1):
+    #     # global menu_str
+    #     menu_str += await view_db(cant, n)
+    for n in cursor.fetchall():
+            # global menu_str
+            menu_str += await view_db(cant, n[0])
 
     return menu_str
 
 
 if __name__ == '__main__':
-    executor.start_polling(dp)
+    executor.start_polling(dp, skip_updates=True)
 
 
 #
